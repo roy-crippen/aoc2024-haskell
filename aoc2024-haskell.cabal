@@ -19,14 +19,14 @@ custom-setup
 
 library
     import:           warnings
-    ghc-options:      -O1
+    ghc-options:      -O2
     exposed-modules:  Day01
                     , Day02
                     , Day99
                     , Util
     build-depends:    base ^>= 4.17.2.1
-                   , containers
-                   , file-embed >= 0.0.16
+                    , containers >= 0.6
+                    , file-embed >= 0.0.16
                     , heredoc >= 0.2
                     , memoize >= 1.1
                     , text >= 2.0
@@ -37,7 +37,7 @@ library
 
 executable aoc2024-haskell
     import:           warnings
-    ghc-options:      -O1 -threaded -rtsopts -with-rtsopts=-N
+    ghc-options:      -O2 -threaded -rtsopts -with-rtsopts=-N
     main-is:          Main.hs
     build-depends:    base ^>= 4.17.2.1
                     , aoc2024-haskell
