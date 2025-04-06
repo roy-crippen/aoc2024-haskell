@@ -29,6 +29,7 @@ library
                     , file-embed >= 0.0.16
                     , heredoc >= 0.2
                     , memoize >= 1.1
+                    , parallel >= 3.2
                     , text >= 2.0
                     , vector >= 0.13
                     , vector-algorithms >= 0.9
@@ -42,6 +43,7 @@ executable aoc2024-haskell
     build-depends:    base ^>= 4.17.2.1
                     , aoc2024-haskell
                     , deepseq >= 1.4
+                    , parallel >= 3.2
                     , text >= 2.0
                     , time >= 1.9
     hs-source-dirs:   app

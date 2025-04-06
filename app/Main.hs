@@ -1,6 +1,7 @@
 module Main where
 
-import Control.DeepSeq (deepseq)
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Day01 (solutionDay01)
 import Day02 (solutionDay02)
@@ -15,17 +16,16 @@ main :: IO ()
 main = mapM_ runSolution solutions
   where
     runSolution sol = do
+      let in_str = input sol
       -- Time Part 1
       clockStart1 <- getCurrentTime
-      let v1 = solvePart1 sol (input sol)
-      deepseq v1 (return ()) -- Force full evaluation of v1
+      v1 <- evaluate $ force $ solvePart1 sol in_str -- Force full evaluation of v1
       clockEnd1 <- getCurrentTime
       let clockElapsed1 = realToFrac (diffUTCTime clockEnd1 clockStart1) * 1000000 -- Seconds to microseconds
 
       -- Time Part 2
       clockStart2 <- getCurrentTime
-      let v2 = solvePart2 sol (input sol)
-      deepseq v2 (return ()) -- Force full evaluation of v2
+      v2 <- evaluate $ force $ solvePart2 sol in_str -- Force full evaluation of v2
       clockEnd2 <- getCurrentTime
       let clockElapsed2 = realToFrac (diffUTCTime clockEnd2 clockStart2) * 1000000 -- Seconds to microseconds
 
@@ -35,9 +35,9 @@ main = mapM_ runSolution solutions
       putStrLn (s1 ++ "\n" ++ s2)
 
 format :: Int -> String -> Int -> Int -> Double -> String
-format day part v expected clockElapsed = if v == expected then good else bad
+format dayNum part v expected clockElapsed = if v == expected then good else bad
   where
-    dayStr = if day < 10 then "0" ++ show day else show day
+    dayStr = if dayNum < 10 then "0" ++ show dayNum else show dayNum
     vStr = replicate (15 - length (show v)) ' ' ++ show v
     clockTimeStr = printf "%8.1f" clockElapsed ++ " μs"
     base = "day " ++ dayStr ++ " " ++ part ++ " "
