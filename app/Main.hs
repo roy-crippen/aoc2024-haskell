@@ -5,12 +5,13 @@ import Control.Exception (evaluate)
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Day01 (solutionDay01)
 import Day02 (solutionDay02)
+import Day03 (solutionDay03)
 import Day99 (solutionDay99)
 import Text.Printf (printf)
 import Util (Solution (..))
 
 solutions :: [Solution]
-solutions = [solutionDay01, solutionDay02, solutionDay99]
+solutions = [solutionDay01, solutionDay02, solutionDay03, solutionDay99]
 
 main :: IO ()
 main = mapM_ runSolution solutions
@@ -21,13 +22,13 @@ main = mapM_ runSolution solutions
       clockStart1 <- getCurrentTime
       v1 <- evaluate $ force $ solvePart1 sol in_str -- Force full evaluation of v1
       clockEnd1 <- getCurrentTime
-      let clockElapsed1 = realToFrac (diffUTCTime clockEnd1 clockStart1) * 1000000 -- Seconds to microseconds
+      let clockElapsed1 = realToFrac (diffUTCTime clockEnd1 clockStart1) * 1000 -- Seconds to milliseconds
 
       -- Time Part 2
       clockStart2 <- getCurrentTime
       v2 <- evaluate $ force $ solvePart2 sol in_str -- Force full evaluation of v2
       clockEnd2 <- getCurrentTime
-      let clockElapsed2 = realToFrac (diffUTCTime clockEnd2 clockStart2) * 1000000 -- Seconds to microseconds
+      let clockElapsed2 = realToFrac (diffUTCTime clockEnd2 clockStart2) * 1000 -- Seconds to milliseconds
 
       -- Format and print results
       let s1 = format (day sol) "part 1" v1 (expectedPart1 sol) clockElapsed1
@@ -39,7 +40,7 @@ format dayNum part v expected clockElapsed = if v == expected then good else bad
   where
     dayStr = if dayNum < 10 then "0" ++ show dayNum else show dayNum
     vStr = replicate (15 - length (show v)) ' ' ++ show v
-    clockTimeStr = printf "%8.1f" clockElapsed ++ " μs"
+    clockTimeStr = printf "%8.4f" clockElapsed ++ " ms"
     base = "day " ++ dayStr ++ " " ++ part ++ " "
     good = base ++ vStr ++ " [" ++ clockTimeStr ++ "]"
     bad = base ++ "expected " ++ show expected ++ " but got " ++ vStr ++ " [" ++ clockTimeStr ++ "]"

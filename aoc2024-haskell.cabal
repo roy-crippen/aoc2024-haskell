@@ -22,14 +22,17 @@ library
     ghc-options:      -O2
     exposed-modules:  Day01
                     , Day02
+                    , Day03
                     , Day99
                     , Util
     build-depends:    base ^>= 4.17.2.1
+                    , bytestring >= 0.11
                     , containers >= 0.6
                     , file-embed >= 0.0.16
                     , heredoc >= 0.2
                     , memoize >= 1.1
                     , parallel >= 3.2
+                    , regex-posix
                     , text >= 2.0
                     , vector >= 0.13
                     , vector-algorithms >= 0.9
