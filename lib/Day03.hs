@@ -1,70 +1,73 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Day03 where
 
+import Data.ByteString (ByteString)
+import Data.ByteString qualified as BS
+import Data.ByteString.Builder qualified as B
+import Data.ByteString.Char8 qualified as BC
 import Data.Char (isDigit)
 import Data.FileEmbed (embedFile)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Data.Vector.Strict qualified as V
 import Util (Solution (..))
 
-data ParseState = ParseState {pairs :: [(Int, Int)], current :: V.Vector Char, afterMul :: Bool, inNumbers :: Bool}
-
-parseMulPairs :: String -> [(Int, Int)]
-parseMulPairs text = pairs $ V.foldl' processChar (ParseState [] V.empty False False) (V.fromList text)
+parseMulPairs :: ByteString -> [(Int, Int)]
+parseMulPairs text = go text 0 []
   where
-    processChar :: ParseState -> Char -> ParseState
-    processChar state c
-      | c == 'l'
-          && V.length curr >= 2
-          && V.slice (V.length curr - 2) 2 curr == V.fromList ['m', 'u'] =
-          state {afterMul = True, current = curr V.++ V.singleton c}
-      | c == '(' && afterMul state =
-          state {current = V.empty, afterMul = False, inNumbers = True}
-      | c == ')' && inNumbers state =
-          let nums = words $ map (\x -> if x == ',' then ' ' else x) $ V.toList (current state)
-           in case nums of
-                [n1, n2]
-                  | all isDigit n1 && all isDigit n2 ->
-                      state {pairs = pairs state ++ [(read n1, read n2)], current = V.empty, afterMul = False, inNumbers = False}
-                _ -> state {current = V.empty, afterMul = False, inNumbers = False}
-      | inNumbers state = state {current = current state V.++ V.singleton c}
-      | otherwise = state {current = current state V.++ V.singleton c, afterMul = False}
-      where
-        curr = current state
+    go :: ByteString -> Int -> [(Int, Int)] -> [(Int, Int)]
+    go bs pos acc
+      | pos + 4 > BS.length bs = reverse acc
+      | BS.take 4 (BS.drop pos bs) == "mul(" =
+          let (pair, newPos) = extractPair bs (pos + 4)
+           in case pair of
+                Just (n1, n2) -> go bs newPos ((n1, n2) : acc)
+                Nothing -> go bs newPos acc
+      | otherwise = go bs (pos + 1) acc
 
-data StateDont = StateDont {prev :: V.Vector Char, keep :: V.Vector Char, isDo :: Bool}
+    extractPair :: ByteString -> Int -> (Maybe (Int, Int), Int)
+    extractPair bs start =
+      let (num1, pos1) = readNum bs start
+          (commaPos, hasComma) =
+            if pos1 < BS.length bs && BS.index bs pos1 == fromIntegral (fromEnum ',')
+              then (pos1 + 1, True)
+              else (pos1, False)
+          (num2, pos2) = if hasComma then readNum bs commaPos else (Nothing, pos1)
+          (endPos, isValid) =
+            if pos2 < BS.length bs && BS.index bs pos2 == fromIntegral (fromEnum ')')
+              then (pos2 + 1, True)
+              else (pos2, False)
+       in case (num1, num2, isValid) of
+            (Just n1, Just n2, True) -> (Just (n1, n2), endPos)
+            _ -> (Nothing, endPos)
 
-removeDonts :: String -> String
-removeDonts input = V.toList $ keep $ V.foldl' processChar (StateDont V.empty V.empty True) (V.fromList input)
+    readNum :: ByteString -> Int -> (Maybe Int, Int)
+    readNum bs pos
+      | pos >= BS.length bs || not (isDigit (toEnum (fromIntegral (BS.index bs pos)))) = (Nothing, pos)
+      | otherwise =
+          let (digits, _rest) = BS.span (isDigit . toEnum . fromIntegral) (BS.drop pos bs)
+           in (Just (read (BC.unpack digits)), pos + BS.length digits)
+
+removeDonts :: ByteString -> ByteString
+removeDonts text = BS.toStrict $ B.toLazyByteString $ go text 0 True mempty
   where
-    processChar :: StateDont -> Char -> StateDont
-    processChar st char =
-      let st1 = st {prev = prev st V.++ V.singleton char}
-          st2 = if isDo st1 then st1 {keep = keep st1 V.++ V.singleton char} else st1
-       in if char == ')'
-            then
-              let donts =
-                    if V.length (prev st2) >= 7
-                      then V.slice (V.length (prev st2) - 7) 7 (prev st2)
-                      else V.empty
-                  dos =
-                    if V.length donts >= 4
-                      then V.drop 3 donts
-                      else V.empty
-               in case (V.toList dos, V.toList donts) of
-                    ("do()", _) -> st2 {isDo = True}
-                    (_, "don't()") -> st2 {isDo = False}
-                    _ -> st2
-            else st2
+    go :: ByteString -> Int -> Bool -> B.Builder -> B.Builder
+    go bs pos isDo acc
+      | pos >= BS.length bs = acc
+      | isDo && pos + 7 <= BS.length bs && BS.take 7 (BS.drop pos bs) == "don't()" =
+          go bs (pos + 7) False acc
+      | not isDo && pos + 4 <= BS.length bs && BS.take 4 (BS.drop pos bs) == "do()" =
+          go bs (pos + 4) True acc
+      | isDo = go bs (pos + 1) isDo (acc <> B.word8 (BS.index bs pos))
+      | otherwise = go bs (pos + 1) isDo acc
 
 part1 :: T.Text -> Int
-part1 text = sum $ map (uncurry (*)) $ parseMulPairs $ T.unpack text
+part1 text = sum $ map (uncurry (*)) $ parseMulPairs $ TE.encodeUtf8 text
 
 part2 :: T.Text -> Int
-part2 text = sum $ map (uncurry (*)) $ parseMulPairs $ removeDonts $ T.unpack text
+part2 text = sum $ map (uncurry (*)) $ parseMulPairs $ removeDonts $ TE.encodeUtf8 text
 
 solutionDay03 :: Solution
 solutionDay03 =
@@ -84,4 +87,4 @@ exampleText1 :: T.Text
 exampleText1 = T.pack "xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))"
 
 exampleText2 :: T.Text
-exampleText2 = T.pack "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))"
+exampleText2 = T.pack "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)do()?mul(8,5))"
