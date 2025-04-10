@@ -24,6 +24,7 @@ library
                     , Day02
                     , Day03
                     , Day99
+                    , Grid
                     , Util
     build-depends:    base ^>= 4.17.2.1
                     , bytestring >= 0.11
