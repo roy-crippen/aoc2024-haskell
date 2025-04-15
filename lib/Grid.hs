@@ -1,116 +1,168 @@
 {-# LANGUAGE GADTs #-}
 
+-- | A 2D grid data structure optimized for 'Char' or 'Int' values, using unboxed
+-- vectors for fast access and updates. Provides efficient operations for grid
+-- traversal, position manipulation, and neighbor queries, suitable for problems
+-- like pathfinding or map processing (e.g., Advent of Code). All grid accesses
+-- are bounds-checked unless specified, with unsafe indexing used internally for
+-- performance.
 module Grid where
 
 import Data.Type.Equality ((:~:) (Refl))
 import Data.Typeable (Typeable, eqT)
-import Data.Vector qualified as V
+import Data.Vector.Unboxed (Unbox)
+import Data.Vector.Unboxed qualified as VU
 
-newtype Pos = Pos (Int, Int) deriving (Show, Eq, Ord)
-
-data Dir = N | NW | W | SW | S | SE | E | NE
+-- | A position on the grid, represented as a row and column pair @(row, col)@.
+-- Rows increase downward, columns rightward, with (0,0) at the top-left.
+newtype Pos = Pos (Int, Int)
   deriving (Show, Eq, Ord)
 
-data Grid a = Grid
-  { vals :: V.Vector a,
-    rows :: Int,
-    cols :: Int
+-- | A direction for grid movement, supporting eight-way navigation.
+data Dir
+  = -- | North (up)
+    N
+  | -- | Northwest
+    NW
+  | -- | West (left)
+    W
+  | -- | Southwest
+    SW
+  | -- | South (down)
+    S
+  | -- | Southeast
+    SE
+  | -- | East (right)
+    E
+  | -- | Northeast
+    NE
+  deriving (Show, Eq, Ord)
+
+-- | A 2D grid of values, restricted to 'Char' or 'Int' for unboxed storage.
+-- Stores elements in a row-major unboxed vector for fast access, with strict
+-- dimensions to prevent thunks.
+data Grid t = Grid
+  { -- | Unboxed vector of grid values
+    vals :: !(VU.Vector t),
+    -- | Number of rows
+    rows :: !Int,
+    -- | Number of columns
+    cols :: !Int
   }
   deriving (Eq)
 
-instance (Show a, Typeable a) => Show (Grid a) where
-  show :: Grid a -> String
-  show grid = unlines $ map unwords $ chunksOf (cols grid) $ map showElement $ V.toList $ vals grid
+-- | Pretty-prints the grid as a string, with rows separated by newlines.
+-- 'Char' values are shown directly (e.g., '#'), 'Int' values use 'show'.
+instance (Show t, Typeable t, Unbox t) => Show (Grid t) where
+  show grid = unlines $ map unwords $ chunksOf (cols grid) $ map showElement $ VU.toList $ vals grid
     where
-      showElement :: a -> String
-      showElement x = case eqT @a @Char of
-        Just Refl -> [x] -- Display Char without quotes
-        Nothing -> show x -- Use default show for other types
+      showElement x = case eqT @t @Char of
+        Just Refl -> [x]
+        Nothing -> show x
 
--- | Creates a grid with the specified number of rows and columns, filled with a given value.
+-- | Creates a grid filled with a single value.
 --
 -- * @numRows@: Number of rows (must be non-negative).
 -- * @numCols@: Number of columns (must be non-negative).
--- * @value@: The value to fill the grid with.
--- * Returns: A new 'Grid' filled with @value@.
-make :: Int -> Int -> a -> Grid a
+-- * @value@: Value to fill the grid (e.g., ' ' or 0).
+--
+-- Returns a 'Grid t' with dimensions @numRows x numCols@.
+make :: (Unbox t) => Int -> Int -> t -> Grid t
 make numRows numCols value =
   Grid
-    { vals = V.replicate (numRows * numCols) value,
+    { vals = VU.replicate (numRows * numCols) value,
       rows = numRows,
       cols = numCols
     }
+{-# INLINE make #-}
 
 -- | Checks if a position is within the grid's bounds.
 --
--- * @g@: The grid to check against.
+-- * @grid@: The grid to check against.
 -- * @pos@: The position to test.
--- * Returns: 'True' if @pos@ is inside the grid, 'False' otherwise.
-isInside :: Grid a -> Pos -> Bool
-isInside g (Pos (r, c)) = r >= 0 && r < rows g && c >= 0 && c < cols g
-
--- | Converts a position to a flat index in a row-major grid layout.
 --
--- * @pos@: The position to convert.
--- * @cols@: Number of columns in the grid layout.
--- * Returns: The index corresponding to @pos@ in a grid with @cols@ columns.
+-- Returns 'True' if @pos@ is valid (row and column are non-negative and less
+-- than grid dimensions), 'False' otherwise.
+isInside :: (Unbox t) => Grid t -> Pos -> Bool
+isInside g (Pos (r, c)) = r >= 0 && r < rows g && c >= 0 && c < cols g
+{-# INLINE isInside #-}
+
+-- | Converts a position to a vector index (row-major order).
+--
+-- * @pos@: The position @(row, col)@.
+-- * @cols@: Number of columns in the grid.
+--
+-- Returns the index for the unboxed vector. Assumes @pos@ is valid; use with
+-- 'isInside' for safety.
 posToIdx :: Pos -> Int -> Int
 posToIdx (Pos (r, c)) cols = r * cols + c
+{-# INLINE posToIdx #-}
 
--- | Converts a flat index to a position in a row-major grid layout.
+-- | Converts a vector index to a position (row-major order).
 --
--- * @idx@: The index to convert.
--- * @rows@: Number of rows in the grid (unused, kept for context).
--- * @cols@: Number of columns in the grid.
--- * Returns: The position corresponding to @idx@ in a grid with @cols@ columns.
+-- * @idx@: The vector index.
+-- * @rows@: Number of rows (unused, for API consistency).
+-- * @cols@: Number of columns.
+--
+-- Returns the corresponding 'Pos'.
 idxToPos :: Int -> Int -> Int -> Pos
 idxToPos idx _ cols = Pos (r, c)
   where
     r = idx `div` cols
     c = idx `mod` cols
+{-# INLINE idxToPos #-}
 
--- | Retrieves the value at a position in the grid, if it exists.
+-- | Retrieves the value at a position, if valid.
 --
 -- * @grid@: The grid to query.
 -- * @pos@: The position to access.
--- * Returns: 'Just' the value at @pos@ if within bounds, 'Nothing' otherwise.
-get :: Grid a -> Pos -> Maybe a
+--
+-- Returns 'Just' the value if @pos@ is within bounds, 'Nothing' otherwise.
+-- Uses unsafe indexing internally for speed, guarded by 'isInside'.
+get :: (Unbox t) => Grid t -> Pos -> Maybe t
 get grid pos
-  | isInside grid pos = Just (vals grid V.! idx)
+  | isInside grid pos = Just (VU.unsafeIndex (vals grid) idx)
   | otherwise = Nothing
   where
     idx = posToIdx pos (cols grid)
+{-# INLINE get #-}
 
--- | Sets a value at a position in the grid, returning a new grid.
+-- | Sets the value at a position, if valid.
 --
--- * @grid@: The original grid.
--- * @pos@: The position to update.
--- * @value@: The value to set.
--- * Returns: A new 'Grid' with @value@ at @pos@ if within bounds, unchanged otherwise.
-set :: Grid a -> Pos -> a -> Grid a
+-- * @grid@: The grid to update.
+-- * @pos@: The position to modify.
+-- * @value@: The new value.
+--
+-- Returns a new 'Grid t' with the updated value if @pos@ is within bounds,
+-- otherwise returns the original grid.
+set :: (Unbox t) => Grid t -> Pos -> t -> Grid t
 set grid pos value
-  | isInside grid pos = grid {vals = vals grid V.// [(idx, value)]}
+  | isInside grid pos = grid {vals = vals grid VU.// [(idx, value)]}
   | otherwise = grid
   where
     idx = posToIdx pos (cols grid)
+{-# INLINE set #-}
 
--- | Finds all positions in the grid where a predicate holds.
+-- | Finds all positions where a predicate holds.
 --
 -- * @grid@: The grid to search.
--- * @p@: Predicate function to test each element.
--- * Returns: A list of positions where @p@ returns 'True' for the element.
-findPositions :: Grid a -> (a -> Bool) -> [Pos]
+-- * @p@: Predicate on grid values (e.g., @(== '#')@).
+--
+-- Returns a list of 'Pos' where the predicate is 'True'. Scans the entire grid.
+findPositions :: (Unbox t) => Grid t -> (t -> Bool) -> [Pos]
 findPositions grid p =
   [ idxToPos i (rows grid) (cols grid)
-    | i <- [0 .. V.length (vals grid) - 1],
-      p (vals grid V.! i)
+    | i <- [0 .. VU.length (vals grid) - 1],
+      p (vals grid VU.! i)
   ]
 
--- | Moves a position in the specified direction.
+-- | Moves a position in a given direction.
 --
 -- * @pos@: The starting position.
 -- * @dir@: The direction to move.
--- * Returns: The new position after moving in @dir@ (no bounds checking).
+--
+-- Returns the new 'Pos' after applying the direction (e.g., 'N' decreases row).
+-- Does not check bounds; use 'isInside' to validate the result.
 move :: Pos -> Dir -> Pos
 move (Pos (r, c)) dir = case dir of
   N -> Pos (r - 1, c)
@@ -121,70 +173,57 @@ move (Pos (r, c)) dir = case dir of
   SE -> Pos (r + 1, c + 1)
   E -> Pos (r, c + 1)
   NE -> Pos (r - 1, c + 1)
+{-# INLINE move #-}
 
--- | Moves a position north.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving north.
+-- | Moves a position north (up).
 north :: Pos -> Pos
 north pos = move pos N
+{-# INLINE north #-}
 
 -- | Moves a position northwest.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving northwest.
 northWest :: Pos -> Pos
 northWest pos = move pos NW
+{-# INLINE northWest #-}
 
--- | Moves a position west.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving west.
+-- | Moves a position west (left).
 west :: Pos -> Pos
 west pos = move pos W
+{-# INLINE west #-}
 
 -- | Moves a position southwest.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving southwest.
 southWest :: Pos -> Pos
 southWest pos = move pos SW
+{-# INLINE southWest #-}
 
--- | Moves a position south.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving south.
+-- | Moves a position south (down).
 south :: Pos -> Pos
 south pos = move pos S
+{-# INLINE south #-}
 
 -- | Moves a position southeast.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving southeast.
 southEast :: Pos -> Pos
 southEast pos = move pos SE
+{-# INLINE southEast #-}
 
--- | Moves a position east.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving east.
+-- | Moves a position east (right).
 east :: Pos -> Pos
 east pos = move pos E
+{-# INLINE east #-}
 
 -- | Moves a position northeast.
---
--- * @pos@: The starting position.
--- * Returns: The new position after moving northeast.
 northEast :: Pos -> Pos
 northEast pos = move pos NE
+{-# INLINE northEast #-}
 
--- | Applies a function to the four cardinal neighbors (N, W, S, E) of a position.
+-- | Applies a function to the four cardinal neighbors of a position.
 --
--- * @g@: The grid to operate on.
--- * @pos@: The central position.
--- * @f@: Function to apply to each neighbor.
--- * Returns: A list of results from applying @f@ to the four neighbors.
-apply4 :: Grid a -> Pos -> (Grid a -> Pos -> b) -> [b]
+-- * @grid@: The grid context.
+-- * @pos@: The center position.
+-- * @f@: Function to apply (e.g., 'get' for neighbor values).
+--
+-- Returns a list of results for north, west, south, and east neighbors, in that
+-- order. Neighbors may be out of bounds; use 'isInside' or 'get' in @f@.
+apply4 :: (Unbox t) => Grid t -> Pos -> (Grid t -> Pos -> b) -> [b]
 apply4 g pos f =
   [ f g (north pos),
     f g (west pos),
@@ -192,13 +231,16 @@ apply4 g pos f =
     f g (east pos)
   ]
 
--- | Applies a function to all eight neighbors (N, NW, W, SW, S, SE, E, NE) of a position.
+-- | Applies a function to all eight neighbors of a position.
 --
--- * @g@: The grid to operate on.
--- * @pos@: The central position.
--- * @f@: Function to apply to each neighbor.
--- * Returns: A list of results from applying @f@ to all eight neighbors.
-apply8 :: Grid a -> Pos -> (Grid a -> Pos -> b) -> [b]
+-- * @grid@: The grid context.
+-- * @pos@: The center position.
+-- * @f@: Function to apply (e.g., 'get' for neighbor values).
+--
+-- Returns a list of results for north, northwest, west, southwest, south,
+-- southeast, east, and northeast neighbors, in that order. Neighbors may be out
+-- of bounds; use 'isInside' or 'get' in @f@.
+apply8 :: (Unbox t) => Grid t -> Pos -> (Grid t -> Pos -> b) -> [b]
 apply8 g pos f =
   [ f g (north pos),
     f g (northWest pos),
@@ -210,11 +252,13 @@ apply8 g pos f =
     f g (northEast pos)
   ]
 
--- | Splits a list into chunks of specified size.
+-- | Splits a list into chunks of a given size.
 --
 -- * @n@: Size of each chunk.
--- * @xs@: The list to split.
--- * Returns: A list of chunks, each of length @n@ (last chunk may be shorter).
+-- * @xs@: List to split.
+--
+-- Returns a list of lists, each of length @n@ (last chunk may be shorter).
+-- Used internally for 'show'.
 chunksOf :: Int -> [a] -> [[a]]
 chunksOf _ [] = []
 chunksOf n xs = take n xs : chunksOf n (drop n xs)

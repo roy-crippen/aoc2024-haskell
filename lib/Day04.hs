@@ -7,7 +7,7 @@ import Data.FileEmbed (embedFile)
 import Data.List (foldl')
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Data.Vector qualified as V
+import Data.Vector.Unboxed qualified as VU
 import Grid qualified as G
 import Text.Heredoc (here)
 import Util (Solution (..))
@@ -24,7 +24,7 @@ parse text =
       numCols = case ls of -- Number of columns from first row
         [] -> error "parse: input must have at least one row"
         (l : _) -> T.length l
-      dataVec = V.fromList $ concatMap T.unpack ls -- Flatten to Vector Char
+      dataVec = VU.fromList $ concatMap T.unpack ls -- Flatten to Vector Char
    in G.Grid
         { G.vals = dataVec,
           G.rows = numRows,
