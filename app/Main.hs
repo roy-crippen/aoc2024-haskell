@@ -7,12 +7,22 @@ import Day01 (solutionDay01)
 import Day02 (solutionDay02)
 import Day03 (solutionDay03)
 import Day04 (solutionDay04)
+import Day05 (solutionDay05)
+import Day06 (solutionDay06)
 import Day99 (solutionDay99)
 import Text.Printf (printf)
 import Util (Solution (..))
 
 solutions :: [Solution]
-solutions = [solutionDay01, solutionDay02, solutionDay03, solutionDay04, solutionDay99]
+solutions =
+  [ solutionDay01,
+    solutionDay02,
+    solutionDay03,
+    solutionDay04,
+    solutionDay05,
+    solutionDay06,
+    solutionDay99
+  ]
 
 main :: IO ()
 main = mapM_ runSolution solutions

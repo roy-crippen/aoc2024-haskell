@@ -24,12 +24,15 @@ library
                     , Day02
                     , Day03
                     , Day04
+                    , Day05
+                    , Day06
                     , Day99
                     , Grid
                     , Util
     build-depends:    base ^>= 4.17.2.1
                     , bytestring >= 0.11
                     , containers >= 0.6
+                    , dlist >= 0.1
                     , file-embed >= 0.0.16
                     , heredoc >= 0.2
                     , memoize >= 1.1

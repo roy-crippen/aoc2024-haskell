@@ -6,10 +6,10 @@ import Data.Type.Equality ((:~:) (Refl))
 import Data.Typeable (Typeable, eqT)
 import Data.Vector qualified as V
 
-newtype Pos = Pos (Int, Int) deriving (Show)
+newtype Pos = Pos (Int, Int) deriving (Show, Eq, Ord)
 
 data Dir = N | NW | W | SW | S | SE | E | NE
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 data Grid a = Grid
   { vals :: V.Vector a,
