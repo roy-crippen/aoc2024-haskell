@@ -8,6 +8,7 @@
 -- performance.
 module Grid where
 
+import Data.Hashable (Hashable, hashWithSalt)
 import Data.Type.Equality ((:~:) (Refl))
 import Data.Typeable (Typeable, eqT)
 import Data.Vector.Unboxed (Unbox)
@@ -20,33 +21,35 @@ newtype Pos = Pos (Int, Int)
 
 -- | A direction for grid movement, supporting eight-way navigation.
 data Dir
-  = -- | North (up)
-    N
-  | -- | Northwest
-    NW
-  | -- | West (left)
-    W
-  | -- | Southwest
-    SW
-  | -- | South (down)
-    S
-  | -- | Southeast
-    SE
-  | -- | East (right)
-    E
-  | -- | Northeast
-    NE
+  = N
+  | NW
+  | W
+  | SW
+  | S
+  | SE
+  | E
+  | NE
   deriving (Show, Eq, Ord)
+
+instance Hashable Pos where
+  hashWithSalt salt (Pos tuple) = hashWithSalt salt tuple
+
+instance Hashable Dir where
+  hashWithSalt salt N = hashWithSalt salt (0 :: Int)
+  hashWithSalt salt E = hashWithSalt salt (1 :: Int)
+  hashWithSalt salt S = hashWithSalt salt (2 :: Int)
+  hashWithSalt salt W = hashWithSalt salt (3 :: Int)
+  hashWithSalt salt NW = hashWithSalt salt (4 :: Int)
+  hashWithSalt salt SW = hashWithSalt salt (5 :: Int)
+  hashWithSalt salt SE = hashWithSalt salt (6 :: Int)
+  hashWithSalt salt NE = hashWithSalt salt (7 :: Int)
 
 -- | A 2D grid of values, restricted to 'Char' or 'Int' for unboxed storage.
 -- Stores elements in a row-major unboxed vector for fast access, with strict
 -- dimensions to prevent thunks.
 data Grid t = Grid
-  { -- | Unboxed vector of grid values
-    vals :: !(VU.Vector t),
-    -- | Number of rows
+  { vals :: !(VU.Vector t),
     rows :: !Int,
-    -- | Number of columns
     cols :: !Int
   }
   deriving (Eq)

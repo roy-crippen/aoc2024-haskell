@@ -51,7 +51,7 @@ format dayNum part v expected clockElapsed = if v == expected then good else bad
   where
     dayStr = if dayNum < 10 then "0" ++ show dayNum else show dayNum
     vStr = replicate (15 - length (show v)) ' ' ++ show v
-    clockTimeStr = printf "%8.4f" clockElapsed ++ " ms"
+    clockTimeStr = printf "%10.3f" clockElapsed ++ " ms"
     base = "day " ++ dayStr ++ " " ++ part ++ " "
     good = base ++ vStr ++ " [" ++ clockTimeStr ++ "]"
     bad = base ++ "expected " ++ show expected ++ " but got " ++ vStr ++ " [" ++ clockTimeStr ++ "]"
