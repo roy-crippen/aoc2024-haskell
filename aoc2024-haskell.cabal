@@ -26,12 +26,14 @@ library
                     , Day04
                     , Day05
                     , Day06
+                    , Day07
                     , Day99
                     , Grid
                     , Util
     build-depends:    base ^>= 4.18.3.0
                     , bytestring
                     , containers
+                    , deepseq
                     , dlist
                     , file-embed
                     , hashable
