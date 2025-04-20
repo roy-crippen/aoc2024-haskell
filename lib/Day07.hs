@@ -40,38 +40,27 @@ unConcatInt joined rightSide = result
         then Just (joined `div` divisor')
         else Nothing
 
-evalPart1 :: Int -> [Int] -> Bool
-evalPart1 target values =
+eval :: Int -> [Int] -> Bool -> Bool
+eval target values isPart2 =
   case values of
     [_] -> False
-    [v1, v2] -> v1 + v2 == target || v1 * v2 == target
-    _ -> isMul || isAdd
-      where
-        val = last values
-        values' = take (length values - 1) values
-        isMul = target `mod` val == 0 && evalPart1 (target `div` val) values'
-        isAdd = target >= val && evalPart1 (target - val) values'
-
-evalPart2 :: Int -> [Int] -> Bool
-evalPart2 target values =
-  case values of
-    [_] -> False
-    [v1, v2] -> v1 + v2 == target || v1 * v2 == target || v1 `concatInt` v2 == target
+    [v1, v2] -> v1 + v2 == target || v1 * v2 == target || (isPart2 && v1 `concatInt` v2 == target)
     _ -> isMul || isAdd || isConcat
       where
         val = last values
         values' = take (length values - 1) values
-        isMul = target `mod` val == 0 && evalPart2 (target `div` val) values'
-        isAdd = target >= val && evalPart2 (target - val) values'
+        isMul = target `mod` val == 0 && eval (target `div` val) values' isPart2
+        isAdd = target >= val && eval (target - val) values' isPart2
         isConcat =
-          case unConcatInt target val of
-            Just lhs -> evalPart2 lhs values'
-            _ -> False
+          isPart2
+            && case unConcatInt target val of
+              Just lhs -> eval lhs values' isPart2
+              _ -> False
 
-solve :: T.Text -> (Int -> [Int] -> Bool) -> Int
-solve s evaluator = sum $ parMap rseq processEquation $ parse s
+solve :: T.Text -> Bool -> Int
+solve s isPart2 = sum $ parMap rseq processEquation $ parse s
   where
-    processEquation eq = if evaluator (res eq) (vals eq) then res eq else 0
+    processEquation eq = if eval (res eq) (vals eq) isPart2 then res eq else 0
 
 solutionDay07 :: Solution
 solutionDay07 =
@@ -88,10 +77,10 @@ textInput :: T.Text
 textInput = TE.decodeUtf8 $(embedFile "data/day_07.txt")
 
 part1 :: T.Text -> Int
-part1 s = solve s evalPart1
+part1 s = solve s False
 
 part2 :: T.Text -> Int
-part2 s = solve s evalPart2
+part2 s = solve s True
 
 exampleText :: T.Text
 exampleText =
