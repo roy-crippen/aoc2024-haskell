@@ -51,3 +51,10 @@ chunkList _ [] = []
 chunkList n xs
   | length xs <= n = [xs]
   | otherwise = take n xs : chunkList n (drop n xs)
+
+kCombosWithoutReps :: Int -> [a] -> [[a]]
+kCombosWithoutReps 0 _ = [[]]
+kCombosWithoutReps _ [] = []
+kCombosWithoutReps k (x : xs)
+  | k < 0 || k > length (x : xs) = []
+  | otherwise = [x : ys | ys <- kCombosWithoutReps (k - 1) xs] ++ kCombosWithoutReps k xs
