@@ -3,6 +3,7 @@
 
 module Day08 where
 
+import Data.DList qualified as DList
 import Data.FileEmbed (embedFile)
 import Data.HashSet qualified as HashSet
 import Data.List (foldl')
@@ -16,6 +17,9 @@ import Util (Solution (..), kCombosWithoutReps)
 type Pos = (Int, Int)
 
 data Board = Board {rows :: Int, cols :: Int, ants :: [[Pos]]} deriving (Show)
+
+(++.) :: DList.DList a -> DList.DList a -> DList.DList a
+(++.) = DList.append
 
 parse :: T.Text -> Board
 parse text = board
@@ -61,9 +65,12 @@ manyAntis p1' p2' rows cols = go p1' p2' []
       _ -> res
 
 antisPart2 :: [(Pos, Pos)] -> Int -> Int -> [Pos]
-antisPart2 combos rows cols = concatMap process combos
+antisPart2 combos rows cols = DList.toList $ foldr process DList.empty combos
   where
-    process (p1, p2) = manyAntis p1 p2 rows cols ++ manyAntis p2 p1 rows cols
+    process (p1, p2) acc = list1 ++. list2 ++. acc
+      where
+        list1 = DList.fromList $ manyAntis p1 p2 rows cols
+        list2 = DList.fromList $ manyAntis p2 p1 rows cols
 
 solutionDay08 :: Solution
 solutionDay08 =
@@ -87,11 +94,11 @@ part1 s = length $ HashSet.fromList antis
     antis = foldl' f [] (ants b)
 
 part2 :: T.Text -> Int
-part2 s = length $ HashSet.fromList antis
+part2 s = HashSet.size hs
   where
     b = parse s
-    f acc ant = ant ++ acc ++ antisPart2 (getCombos ant) (rows b) (cols b)
-    antis = foldl' f [] (ants b)
+    f acc ant = foldr HashSet.insert acc (ant ++ antisPart2 (getCombos ant) (rows b) (cols b))
+    hs = foldl' f HashSet.empty (ants b)
 
 exampleText :: T.Text
 exampleText =
