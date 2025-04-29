@@ -11,6 +11,7 @@ import Day05 (solutionDay05)
 import Day06 (solutionDay06)
 import Day07 (solutionDay07)
 import Day08 (solutionDay08)
+import Day09 (solutionDay09)
 import Day99 (solutionDay99)
 import Text.Printf (printf)
 import Util (Solution (..))
@@ -25,6 +26,7 @@ solutions =
     solutionDay06,
     solutionDay07,
     solutionDay08,
+    solutionDay09,
     solutionDay99
   ]
 

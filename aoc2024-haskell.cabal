@@ -19,7 +19,7 @@ custom-setup
 
 library
     import:           warnings
-    ghc-options:      -O2
+    ghc-options:      -O2 -XOverloadedRecordDot -XDuplicateRecordFields
     exposed-modules:  Day01
                     , Day02
                     , Day03
@@ -28,6 +28,7 @@ library
                     , Day06
                     , Day07
                     , Day08
+                    , Day09
                     , Day99
                     , Grid
                     , Util
