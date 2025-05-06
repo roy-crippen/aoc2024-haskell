@@ -6,7 +6,6 @@ license-file:       LICENSE
 author:             roycrippen
 maintainer:         roycrippen@gmail.com
 build-type:         Custom
-extra-doc-files:    CHANGELOG.md
 
 common warnings
     ghc-options:    -Wall
@@ -45,7 +44,7 @@ library
                     , regex-posix
                     , text
                     , unordered-containers
-                    , vector
+                    , vector >= 0.12 && < 0.14
                     , vector-algorithms
     hs-source-dirs:   lib
     default-language: GHC2021
