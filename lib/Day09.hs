@@ -4,6 +4,7 @@
 
 module Day09 where
 
+import Control.Monad (when)
 import Control.Monad.ST (ST, runST)
 import Data.Char (digitToInt)
 import Data.FileEmbed (embedFile)
@@ -75,18 +76,29 @@ moveFile files filesIdx holeIdx = do
       pure $ if len == 0 then filesIdx + 1 else filesIdx
     else pure filesIdx
 
-findNextHoleIdx :: File -> V.Vector Hole -> Maybe Int
-findNextHoleIdx file = V.findIndex (\h -> h.len >= file.len && h.startIdx < file.startIdx)
-
-removeEmptyHoles :: V.Vector Hole -> V.Vector Hole
-removeEmptyHoles = V.filter (\h -> h.len > 0)
+findNextHoleIdx :: File -> VM.MVector s Hole -> VM.MVector s Bool -> ST s (Maybe Int)
+findNextHoleIdx file holes available = do
+  let n = VM.length holes
+  go 0 n
+  where
+    go i n
+      | i >= n = pure Nothing
+      | otherwise = do
+          isAvailable <- VM.unsafeRead available i
+          if isAvailable
+            then do
+              h <- VM.unsafeRead holes i
+              if h.len >= file.len && h.startIdx < file.startIdx
+                then pure (Just i)
+                else go (i + 1) n
+            else go (i + 1) n
 
 fillHole :: Hole -> File -> (Hole, File)
 fillHole hole file = (hole', file')
   where
     hole' = Hole {len = hole.len - file.len, startIdx = hole.startIdx + file.len}
     file' = file {startIdx = hole.startIdx, checkSum = checkSum}
-    checkSum = file.fileId * sum (take file.len [hole.startIdx ..])
+    checkSum = file.fileId * (file.len * hole.startIdx + (file.len * (file.len - 1)) `div` 2)
 
 showHoles :: V.Vector Hole -> String
 showHoles = concatMap (\h -> show h ++ "\n")
@@ -128,24 +140,34 @@ part1 s = runST $ do
         else go hs fs holesIdx' filesIdx'
 
 part2 :: T.Text -> Int
-part2 s = V.foldl' (\acc f -> acc + f.checkSum) 0 files'
+part2 s = runST $ do
+  let (holes, files) = parse s
+  holesM <- V.thaw holes
+  filesM <- V.thaw files
+  available <- VM.replicate (V.length holes) True
+  go holesM filesM available 0 0
+  finalFiles <- V.freeze filesM
+  pure $ V.foldl' (\acc f -> f.checkSum + acc) 0 finalFiles
   where
-    go :: V.Vector Hole -> V.Vector File -> Int -> (V.Vector Hole, V.Vector File, Int)
-    go hs fs fIdx = case fIdx of
-      fileIdx | fileIdx >= V.length fs -> (hs, fs, fIdx)
-      _ -> case findNextHoleIdx file hs of
-        Just hIdx -> go hs'' fs' (fIdx + 1)
-          where
-            (hole, file') = fillHole (V.unsafeIndex hs hIdx) file
-            hs' = V.unsafeUpdate hs (V.fromList [(hIdx, hole)])
-            fs' = V.unsafeUpdate fs (V.fromList [(fIdx, file')])
-            hs'' = removeEmptyHoles hs'
-        Nothing -> go hs fs (fIdx + 1)
-        where
-          file = V.unsafeIndex fs fIdx
-
-    (holes, files) = parse s
-    (_, files', _) = go holes files 0
+    go :: VM.MVector s Hole -> VM.MVector s File -> VM.MVector s Bool -> Idx -> Idx -> ST s ()
+    go hs fs available holesIdx filesIdx = do
+      if filesIdx >= VM.length fs
+        then pure ()
+        else do
+          file <- VM.unsafeRead fs filesIdx
+          mHoleIdx <- findNextHoleIdx file hs available
+          case mHoleIdx of
+            Just hIdx -> do
+              hole <- VM.unsafeRead hs hIdx
+              let (hole', file') = fillHole hole file
+              when (hole'.len > 0) $
+                VM.unsafeWrite hs hIdx hole'
+              when (hole'.len <= 0) $
+                VM.unsafeWrite available hIdx False
+              VM.unsafeWrite fs filesIdx file'
+              let nextHolesIdx = if hole'.len <= 0 then hIdx + 1 else holesIdx
+              go hs fs available nextHolesIdx (filesIdx + 1)
+            Nothing -> go hs fs available holesIdx (filesIdx + 1)
 
 exampleText :: T.Text
 exampleText = T.pack "2333133121414131402"
