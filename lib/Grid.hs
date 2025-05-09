@@ -113,7 +113,6 @@ idxToPos idx _ cols = Pos (r, c)
   where
     r = idx `div` cols
     c = idx `mod` cols
-{-# INLINE idxToPos #-}
 
 -- | Retrieves the value at a position, if valid.
 --
