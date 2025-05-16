@@ -52,14 +52,15 @@ distinctAreas g charMap = concat $ M.elems $ M.map findAreas charMap
           where
             dfs' [] unvis area = (area, unvis)
             dfs' (p : rest) unvis area =
-              let neighbors = [n | n <- G.apply4 g p (\_ pos -> pos), G.isInside g n, Set.member n unvis, G.get g n == G.get g p]
+              let neighbors = [n | n <- G.neighbors4 p, G.isInside g n, Set.member n unvis, G.get g n == G.get g p]
                   newUnvis = foldr Set.delete unvis neighbors
                in dfs' (neighbors ++ rest) newUnvis (p : area)
 
 perimeter :: G.Grid Char -> [G.Pos] -> Int
-perimeter g ps =
-  let areaSet = Set.fromList ps
-   in sum [4 - length [n | n <- G.apply4 g p (\_ pos -> pos), G.isInside g n, Set.member n areaSet] | p <- ps]
+perimeter g ps = sum [4 - length (likeNeighbors p) | p <- ps]
+  where
+    areaSet = Set.fromList ps
+    likeNeighbors p' = [n | n <- G.neighbors4 p', G.isInside g n, Set.member n areaSet]
 
 solutionDay12 :: Solution
 solutionDay12 =

@@ -217,6 +217,21 @@ northEast :: Pos -> Pos
 northEast pos = move pos NE
 {-# INLINE northEast #-}
 
+neighbors4 :: Pos -> [Pos]
+neighbors4 pos = [north pos, west pos, south pos, east pos]
+
+neighbors8 :: Pos -> [Pos]
+neighbors8 pos =
+  [ north pos,
+    northWest pos,
+    west pos,
+    southWest pos,
+    south pos,
+    southEast pos,
+    east pos,
+    northEast pos
+  ]
+
 -- | Applies a function to the four cardinal neighbors of a position.
 --
 -- * @grid@: The grid context.
