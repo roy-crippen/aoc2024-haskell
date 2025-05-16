@@ -16,18 +16,14 @@ import Text.Heredoc (here)
 import Util (Solution (..))
 
 parse :: T.Text -> G.Grid Char
-parse text =
-  let ls = T.lines text
-      numRows = length ls
-      numCols = case ls of
-        [] -> error "parse: input must have at least one row"
-        (l : _) -> T.length l
-      dataVec = VU.fromList $ concatMap T.unpack ls
-   in G.Grid
-        { G.vals = dataVec,
-          G.rows = numRows,
-          G.cols = numCols
-        }
+parse text = G.Grid {G.vals = dataVec, G.rows = numRows, G.cols = numCols}
+  where
+    ls = T.lines text
+    numRows = length ls
+    numCols = case ls of
+      [] -> error "parse: input must have at least one row"
+      (l : _) -> T.length l
+    dataVec = VU.fromList $ concatMap T.unpack ls
 
 groupByChar :: G.Grid Char -> M.Map Char [G.Pos]
 groupByChar g = M.fromListWith (++) $ mapMaybe (\p -> (,[p]) <$> G.get g p) ps
@@ -40,21 +36,23 @@ distinctAreas g charMap = concat $ M.elems $ M.map findAreas charMap
     findAreas :: [G.Pos] -> [[G.Pos]]
     findAreas ps = go (Set.fromList ps) []
       where
+        go :: Set.Set G.Pos -> [[G.Pos]] -> [[G.Pos]]
         go unvisited areas
           | Set.null unvisited = areas
-          | otherwise =
-              let start = Set.findMin unvisited
-                  (area, newUnvisited) = dfs start unvisited
-               in go newUnvisited (area : areas)
+          | otherwise = go newUnvisited (area : areas)
+          where
+            start = Set.findMin unvisited
+            (area, newUnvisited) = dfs start unvisited
 
         dfs :: G.Pos -> Set.Set G.Pos -> ([G.Pos], Set.Set G.Pos)
         dfs start unvisited = dfs' [start] (Set.delete start unvisited) []
           where
             dfs' [] unvis area = (area, unvis)
-            dfs' (p : rest) unvis area =
-              let neighbors = [n | n <- G.neighbors4 p, G.isInside g n, Set.member n unvis, G.get g n == G.get g p]
-                  newUnvis = foldr Set.delete unvis neighbors
-               in dfs' (neighbors ++ rest) newUnvis (p : area)
+            dfs' (p : rest) unvis area = dfs' (neighbors ++ rest) newUnvis (p : area)
+              where
+                neighbors = [n | n <- G.neighbors4 p, Set.member n unvis, G.isInside g n, G.get g n == ch]
+                ch = G.get g p
+                newUnvis = foldr Set.delete unvis neighbors
 
 perimeter :: G.Grid Char -> [G.Pos] -> Int
 perimeter g ps = sum [4 - length (likeNeighbors p) | p <- ps]
