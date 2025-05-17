@@ -232,6 +232,50 @@ neighbors8 pos =
     northEast pos
   ]
 
+neighborValues8 :: (Unbox t) => Grid t -> Pos -> [Maybe t]
+neighborValues8 g pos =
+  [ get g (north pos),
+    get g (northWest pos),
+    get g (west pos),
+    get g (southWest pos),
+    get g (south pos),
+    get g (southEast pos),
+    get g (east pos),
+    get g (northEast pos)
+  ]
+
+neighborValues8' :: (Unbox t) => Grid t -> Pos -> (Maybe t, Maybe t, Maybe t, Maybe t, Maybe t, Maybe t, Maybe t, Maybe t)
+neighborValues8' g pos =
+  ( get g (north pos),
+    get g (northWest pos),
+    get g (west pos),
+    get g (southWest pos),
+    get g (south pos),
+    get g (southEast pos),
+    get g (east pos),
+    get g (northEast pos)
+  )
+
+neighbors8' :: Pos -> (Pos, Pos, Pos, Pos, Pos, Pos, Pos, Pos)
+neighbors8' pos =
+  ( north pos,
+    northWest pos,
+    west pos,
+    southWest pos,
+    south pos,
+    southEast pos,
+    east pos,
+    northEast pos
+  )
+
+diagonalNeighbors4 :: Pos -> [Pos]
+diagonalNeighbors4 pos =
+  [ northWest pos,
+    southWest pos,
+    southEast pos,
+    northEast pos
+  ]
+
 -- | Applies a function to the four cardinal neighbors of a position.
 --
 -- * @grid@: The grid context.

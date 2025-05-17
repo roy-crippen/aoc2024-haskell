@@ -11,6 +11,8 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Vector.Unboxed qualified as VU
+import Data.Vector.Unboxed.Base (Vector (V_Bool))
+import Debug.Trace (trace)
 import Grid qualified as G
 import Text.Heredoc (here)
 import Util (Solution (..))
@@ -57,8 +59,40 @@ distinctAreas g charMap = concat $ M.elems $ M.map findAreas charMap
 perimeter :: G.Grid Char -> [G.Pos] -> Int
 perimeter g ps = sum [4 - length (likeNeighbors p) | p <- ps]
   where
-    areaSet = Set.fromList ps
-    likeNeighbors p' = [n | n <- G.neighbors4 p', G.isInside g n, Set.member n areaSet]
+    likeNeighbors p' = [n | n <- G.neighbors4 p', G.isInside g n && G.get g n == ch]
+      where
+        ch = G.get g p'
+
+cornerCounts :: G.Grid Char -> [G.Pos] -> Int
+cornerCounts g ps = outsideCorners + insideCorners
+  where
+    -- msg = "(" ++ show (G.get g (head ps)) ++ "," ++ show outsideCorners ++ ", " ++ show insideCorners ++ ")"
+    outsideCorners = sum $ map outsideCornerCount ps
+    insideCorners = sum $ map insideCornerCount ps
+
+    outsideCornerCount :: G.Pos -> Int
+    outsideCornerCount p = foldl (\acc xs -> if isOutsideCorner xs then acc + 1 else acc) 0 xss
+      where
+        isOutsideCorner :: [Maybe Char] -> Bool
+        isOutsideCorner xs' = case xs' of
+          [p1, _, p3] -> p1 /= ch && p3 /= ch
+          _ -> False
+
+        (n, nw, w, sw, s, se, e, ne) = G.neighborValues8' g p
+        ch = G.get g p
+        xss = [[s, se, e], [s, sw, w], [n, ne, e], [n, nw, w]]
+
+    insideCornerCount :: G.Pos -> Int
+    insideCornerCount p = foldl (\acc xs -> if isInsideCorner xs then acc + 1 else acc) 0 xss
+      where
+        isInsideCorner :: [Maybe Char] -> Bool
+        isInsideCorner xs' = case xs' of
+          [p1, p2, p3] -> p1 == ch && p2 /= ch && p3 == ch
+          _ -> False
+
+        (n, nw, w, sw, s, se, e, ne) = G.neighborValues8' g p
+        ch = G.get g p
+        xss = [[s, se, e], [s, sw, w], [n, ne, e], [n, nw, w]]
 
 solutionDay12 :: Solution
 solutionDay12 =
@@ -68,7 +102,7 @@ solutionDay12 =
       solvePart1 = part1,
       solvePart2 = part2,
       expectedPart1 = 1361494,
-      expectedPart2 = 1361494
+      expectedPart2 = 830516
     }
 
 textInput :: T.Text
@@ -82,7 +116,7 @@ part1 s = sum $ map (\area -> perimeter g area * length area) areas
     areas = distinctAreas g m
 
 part2 :: T.Text -> Int
-part2 s = sum $ map (\area -> perimeter g area * length area) areas
+part2 s = sum $ map (\area -> cornerCounts g area * length area) areas
   where
     g = parse s
     m = groupByChar g
@@ -101,3 +135,30 @@ VVIIICJJEE
 MIIIIIJJEE
 MIIISIJEEE
 MMMISSJEEE|]
+
+e1 :: T.Text
+e1 =
+  T.pack
+    [here|AAAA
+BBCD
+BBCC
+EEEC|]
+
+e2 :: T.Text
+e2 =
+  T.pack
+    [here|EEEEE
+EXXXX
+EEEEE
+EXXXX
+EEEEE|]
+
+e3 :: T.Text
+e3 =
+  T.pack
+    [here|AAAAAA
+AAABBA
+AAABBA
+ABBAAA
+ABBAAA
+AAAAAA|]
