@@ -14,7 +14,7 @@ type ABV = (Int, Int, Int) -- Type for equation ax + by = v
 type XY = (Int, Int) -- Type for solution (x, y)
 
 parse :: T.Text -> [(ABV, ABV)]
-parse s = map parseAbv xss
+parse s = map parseAbv $ chunkList 3 $ filter (\t -> T.length t > 0) (T.lines s)
   where
     parseAbv :: [T.Text] -> (ABV, ABV)
     parseAbv xs = (abv1, abv2)
@@ -27,8 +27,6 @@ parse s = map parseAbv xss
         (v1, v2) = parseValues s3 "="
         abv1 = (x1, x2, v1)
         abv2 = (y1, y2, v2)
-
-    xss = chunkList 3 $ filter (\t -> T.length t > 0) (T.lines s)
 
 parseValues :: T.Text -> String -> (Int, Int)
 parseValues t s = case map (T.splitOn (T.pack s)) (T.splitOn (T.pack ",") t) of
