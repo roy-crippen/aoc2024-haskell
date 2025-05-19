@@ -50,7 +50,7 @@ solveEquation ((a1, b1, v1), (a2, b2, v2)) offset =
                 else Nothing
 
 solve :: (ABV, ABV) -> Int -> Int
-solve equations offset = case solveEquation equations offset of
+solve equation offset = case solveEquation equation offset of
   Just (a, b) -> 3 * a + b
   Nothing -> 0
 
