@@ -11,8 +11,6 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Vector.Unboxed qualified as VU
-import Data.Vector.Unboxed.Base (Vector (V_Bool))
-import Debug.Trace (trace)
 import Grid qualified as G
 import Text.Heredoc (here)
 import Util (Solution (..))
@@ -64,35 +62,21 @@ perimeter g ps = sum [4 - length (likeNeighbors p) | p <- ps]
         ch = G.get g p'
 
 cornerCounts :: G.Grid Char -> [G.Pos] -> Int
-cornerCounts g ps = outsideCorners + insideCorners
+cornerCounts g ps = sum $ map cornerCount ps
   where
-    -- msg = "(" ++ show (G.get g (head ps)) ++ "," ++ show outsideCorners ++ ", " ++ show insideCorners ++ ")"
-    outsideCorners = sum $ map outsideCornerCount ps
-    insideCorners = sum $ map insideCornerCount ps
-
-    outsideCornerCount :: G.Pos -> Int
-    outsideCornerCount p = foldl (\acc xs -> if isOutsideCorner xs then acc + 1 else acc) 0 xss
+    cornerCount p = count
       where
-        isOutsideCorner :: [Maybe Char] -> Bool
-        isOutsideCorner xs' = case xs' of
-          [p1, _, p3] -> p1 /= ch && p3 /= ch
-          _ -> False
-
         (n, nw, w, sw, s, se, e, ne) = G.neighborValues8' g p
         ch = G.get g p
-        xss = [[s, se, e], [s, sw, w], [n, ne, e], [n, nw, w]]
-
-    insideCornerCount :: G.Pos -> Int
-    insideCornerCount p = foldl (\acc xs -> if isInsideCorner xs then acc + 1 else acc) 0 xss
-      where
-        isInsideCorner :: [Maybe Char] -> Bool
-        isInsideCorner xs' = case xs' of
-          [p1, p2, p3] -> p1 == ch && p2 /= ch && p3 == ch
-          _ -> False
-
-        (n, nw, w, sw, s, se, e, ne) = G.neighborValues8' g p
-        ch = G.get g p
-        xss = [[s, se, e], [s, sw, w], [n, ne, e], [n, nw, w]]
+        count =
+          (if s == ch && se /= ch && e == ch then 1 else 0)
+            + (if s == ch && sw /= ch && w == ch then 1 else 0)
+            + (if n == ch && ne /= ch && e == ch then 1 else 0)
+            + (if n == ch && nw /= ch && w == ch then 1 else 0)
+            + (if s /= ch && e /= ch then 1 else 0)
+            + (if s /= ch && w /= ch then 1 else 0)
+            + (if n /= ch && e /= ch then 1 else 0)
+            + (if n /= ch && w /= ch then 1 else 0)
 
 solutionDay12 :: Solution
 solutionDay12 =
