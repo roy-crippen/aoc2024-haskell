@@ -1,7 +1,6 @@
 module Util where
 
--- import Control.DeepSeq (NFData)
-import Control.Parallel.Strategies
+import Control.Parallel.Strategies (NFData, parMap, rdeepseq)
 import Data.List (foldl')
 import Data.Text qualified as T
 import Data.Text.Read qualified as TR
@@ -32,7 +31,7 @@ instance Show Solution where
       ++ "}"
 
 parseNumUnsafe :: (Integral a) => T.Text -> a
-parseNumUnsafe s = case TR.decimal $ T.strip s of
+parseNumUnsafe s = case TR.signed TR.decimal $ T.strip s of
   Right (x, _) -> x
   _ -> error "Invalid number string in input"
 
