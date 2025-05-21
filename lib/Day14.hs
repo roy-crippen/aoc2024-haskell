@@ -3,14 +3,16 @@
 
 module Day14 where
 
--- import Debug.Trace (trace)
-
 import Control.Parallel.Strategies (parMap, rseq)
+import Data.Bits (Bits (popCount))
 import Data.FileEmbed (embedFile)
+import Data.List (group, groupBy, sort, sortBy)
+import Data.Ord (comparing)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
+import Debug.Trace (trace)
 import Text.Heredoc (here)
-import Util (Solution (..), chunkList, parseNumUnsafe)
+import Util (Solution (..), parseNumUnsafe)
 
 type Idx = Int
 
@@ -20,14 +22,12 @@ type Length = Int
 
 type Count = Idx
 
-parse :: T.Text -> Int -> Int -> [(Idx, Delta, Length)]
-parse s rows cols = concatMap (\t -> parseValues t rows cols) (T.lines s)
+parse :: T.Text -> ([(Idx, Delta)], [(Idx, Delta)])
+parse s = unzip . sortYX $ map parseValues (T.lines s)
 
-parseValues :: T.Text -> Int -> Int -> [(Idx, Delta, Length)]
-parseValues s rows cols = [(x, vx, cols'), (y, vy, rows')]
+parseValues :: T.Text -> ((Idx, Delta), (Idx, Delta))
+parseValues s = ((x, vx), (y, vy))
   where
-    rows' = rows - 1
-    cols' = cols - 1
     ls = T.splitOn (T.pack " ") s
     (x, y) = parseValue $ head ls
     (vx, vy) = parseValue $ ls !! 1
@@ -39,39 +39,36 @@ parseValue s = (v1, v2)
       [s1, s2] -> (parseNumUnsafe $ T.drop 1 $ T.dropWhile (/= '=') s1, parseNumUnsafe s2)
       _ -> error "Invalid input"
 
-move :: (Idx, Delta, Length) -> Idx
-move (idx, delta, len) = case divs of
+sortYX :: [((Int, Int), (Int, Int))] -> [((Int, Int), (Int, Int))]
+sortYX = sortBy (\(x1, y1) (x2, y2) -> comparing fst y1 y2 <> comparing fst x1 x2)
+
+move :: (Idx, Delta) -> Length -> Idx
+move (idx, delta) len = case divs of
   0 -> remainder
   _ -> if remainder == 0 then len else remainder - 1
   where
     (divs, remainder) = (idx + delta) `divMod` len
 
-moves :: (Idx, Delta, Length) -> Count -> Idx
-moves (idx, delta, len) count = case count of
+moves :: (Idx, Delta) -> Length -> Count -> Idx
+moves (idx, delta) len count = case count of -- trace (show idx) $
   0 -> idx
-  _ -> moves (move (idx, delta, len), delta, len) (count - 1)
+  _ -> moves (move (idx, delta) len, delta) len (count - 1)
 
-doMoves :: (Idx, Delta, Length) -> Count -> Idx
-doMoves (idx, delta, len) count =
+doMoves :: (Idx, Delta) -> Length -> Count -> Idx
+doMoves (idx, delta) len count =
   if delta > 0
-    then moves (idx, delta, len) count
-    else len - moves (len - idx, abs delta, len) count
-
-makePairs :: [(Idx, Delta, Length)] -> Count -> [(Int, Int)]
-makePairs vs count = filter (\(x, y) -> x /= midX && y /= midY) xyPairs
+    then moves (idx, delta) len count'
+    else len - moves (len - idx, abs delta) len count'
   where
-    xyPairs = map (\ls -> (head ls, ls !! 1)) $ chunkList 2 (parMap rseq (`doMoves` count) vs)
-    (_, _, cols) = head vs
-    (_, _, rows) = vs !! 1
-    midX = cols `div` 2
-    midY = rows `div` 2
+    (_, count') = count `divMod` (len + 1) -- cycle repeats every (len + 1) iterations
 
-score :: [(Int, Int)] -> Int -> Int -> Int
-score xs rows cols = q1 * q2 * q3 * q4
+process :: [(Idx, Delta)] -> Length -> Count -> [Idx]
+process pairs len count = map (\pair -> doMoves pair len count) pairs
+
+scorePart1 :: [(Int, Int)] -> Int -> Int -> Int
+scorePart1 xs midX midY = q1 * q2 * q3 * q4
   where
     -- msg = "count (q1,q2,q3,q4) = (" ++ show q1 ++ "," ++ show q2 ++ "," ++ show q3 ++ "," ++ show q4 ++ ")"
-    midX = cols `div` 2
-    midY = rows `div` 2
     (q1, q2, q3, q4) = foldl getScore (0, 0, 0, 0) xs
 
     getScore :: (Int, Int, Int, Int) -> (Int, Int) -> (Int, Int, Int, Int)
@@ -84,8 +81,23 @@ score xs rows cols = q1 * q2 * q3 * q4
         lowX = x <= midX - 1
         lowY = y <= midY - 1
 
-solve :: [(Idx, Delta, Length)] -> Length -> Length -> Count -> Int
-solve xs rows cols count = score (makePairs xs count) rows cols
+-- consecutives :: [Int] -> Int -> Bool
+-- consecutives xs n
+--   | n <= 0 || n > length xs = False
+--   | otherwise = any isConsecutive $ windows n xs
+--   where
+--     -- Generate all windows of size n
+--     windows :: Int -> [a] -> [[a]]
+--     windows n' xs' = takeWhile ((== n') . length) $ map (take n') $ tails xs'
+
+--     -- Check if a list is consecutive (each element increases by 1)
+--     isConsecutive :: [Int] -> Bool
+--     isConsecutive ys = and $ zipWith (\a b -> b == a) ys (tail ys)
+
+-- -- Helper function to generate tails of a list
+-- tails :: [a] -> [[a]]
+-- tails [] = [[]]
+-- tails xs' = xs' : tails (tail xs')
 
 solutionDay14 :: Solution
 solutionDay14 =
@@ -95,23 +107,40 @@ solutionDay14 =
       solvePart1 = part1,
       solvePart2 = part2,
       expectedPart1 = 220971520,
-      expectedPart2 = 42
+      expectedPart2 = 6355
     }
 
 textInput :: T.Text
 textInput = TE.decodeUtf8 $(embedFile "data/day_14.txt")
 
 part1 :: T.Text -> Int
-part1 s = solve (parse s rows cols) rows cols 100
+part1 s = scorePart1 filteredPts midX midY
   where
-    -- rows = 7
-    -- cols = 11
-
-    rows = 103
-    cols = 101
+    rows = 102
+    cols = 100
+    midX = cols `div` 2
+    midY = rows `div` 2
+    (xs, ys) = parse s
+    xyPairs = zip (process xs cols 100) (process ys rows 100)
+    filteredPts = filter (\(x, y) -> x /= midX && y /= midY) xyPairs
 
 part2 :: T.Text -> Int
-part2 _s = 42
+part2 s = go 6000
+  where
+    go :: Count -> Count
+    go count =
+      if length xGroups > 1 && length yGroups > 10
+        then count -- trace (show count ++ ", " ++ show (sort xIndexes))
+        else go (count + 1)
+      where
+        xIndexes = process xs cols count
+        xGroups = filter (\vs -> length vs > 30) $ group (sort xIndexes)
+        yIndexes = process ys rows count
+        yGroups = filter (\vs -> length vs > 10) $ group (sort yIndexes)
+
+    rows = 102
+    cols = 100
+    (xs, ys) = parse s
 
 exampleText :: T.Text
 exampleText =
