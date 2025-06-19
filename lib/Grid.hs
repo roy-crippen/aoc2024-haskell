@@ -129,6 +129,10 @@ get grid pos
     idx = posToIdx pos (cols grid)
 {-# INLINE get #-}
 
+getUnsafe :: (Unbox t) => Grid t -> Pos -> t
+getUnsafe grid pos = VU.unsafeIndex (vals grid) (posToIdx pos (cols grid))
+{-# INLINE getUnsafe #-}
+
 -- | Sets the value at a position, if valid.
 --
 -- * @grid@: The grid to update.
@@ -144,6 +148,18 @@ set grid pos value
   where
     idx = posToIdx pos (cols grid)
 {-# INLINE set #-}
+
+setUnsafe :: (Unbox t) => Grid t -> Pos -> t -> Grid t
+setUnsafe grid pos value = grid {vals = vals grid VU.// [(idx, value)]}
+  where
+    idx = posToIdx pos (cols grid)
+{-# INLINE setUnsafe #-}
+
+swapUnsafe :: (Unbox t) => Grid t -> Pos -> Pos -> Grid t
+swapUnsafe g p1 p2 = do
+  let v1 = getUnsafe g p1
+      g' = setUnsafe g p1 (getUnsafe g p2)
+   in setUnsafe g' p2 v1
 
 -- | Finds all positions where a predicate holds.
 --
