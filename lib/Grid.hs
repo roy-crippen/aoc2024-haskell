@@ -9,6 +9,7 @@
 module Grid where
 
 import Data.Hashable (Hashable, hashWithSalt)
+import Data.List qualified as L
 import Data.Type.Equality ((:~:) (Refl))
 import Data.Typeable (Typeable, eqT)
 import Data.Vector.Unboxed (Unbox)
@@ -133,6 +134,12 @@ getUnsafe :: (Unbox t) => Grid t -> Pos -> t
 getUnsafe grid pos = VU.unsafeIndex (vals grid) (posToIdx pos (cols grid))
 {-# INLINE getUnsafe #-}
 
+getManyUnsafe :: (Unbox t) => Grid t -> [Pos] -> [t]
+getManyUnsafe g = L.map (\p -> VU.unsafeIndex values (posToIdx p columns))
+  where
+    values = vals g
+    columns = cols g
+
 -- | Sets the value at a position, if valid.
 --
 -- * @grid@: The grid to update.
@@ -149,6 +156,12 @@ set grid pos value
     idx = posToIdx pos (cols grid)
 {-# INLINE set #-}
 
+setManyUnsafe :: (Unbox t) => Grid t -> [Pos] -> [t] -> Grid t
+setManyUnsafe g ps vs = g {vals = vals g VU.// L.zip indexes vs}
+  where
+    columns = cols g
+    indexes = L.map (`posToIdx` columns) ps
+
 setUnsafe :: (Unbox t) => Grid t -> Pos -> t -> Grid t
 setUnsafe grid pos value = grid {vals = vals grid VU.// [(idx, value)]}
   where
@@ -156,7 +169,7 @@ setUnsafe grid pos value = grid {vals = vals grid VU.// [(idx, value)]}
 {-# INLINE setUnsafe #-}
 
 swapUnsafe :: (Unbox t) => Grid t -> Pos -> Pos -> Grid t
-swapUnsafe g p1 p2 = do
+swapUnsafe g p1 p2 =
   let v1 = getUnsafe g p1
       g' = setUnsafe g p1 (getUnsafe g p2)
    in setUnsafe g' p2 v1

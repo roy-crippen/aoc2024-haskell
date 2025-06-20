@@ -86,8 +86,8 @@ solutionDay15 =
 textInput :: T.Text
 textInput = TE.decodeUtf8 $(embedFile "data/day_15.txt")
 
--- add setManyUnsafe to Grid
--- change Grid to rord 'dot' record access
+-- add swapManyUnsafe to Grid
+-- change Grid to record 'dot' record access
 part1 :: T.Text -> Int
 part1 s = score g'
   where
